@@ -29,7 +29,7 @@
     .toolbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-top:8px; }
     button { padding:.55rem .9rem; border:1px solid #d0d0d4; border-radius:8px; background:#fff; cursor:pointer; }
     button.primary { background:#0a84ff; color:#fff; border-color:#0a84ff; }
-    .outbox { min-height:120px; direction:rtl; text-align:right; overflow:auto; }
+    .outbox { min-height:120px; overflow:auto; /* أهم سطرين بالأسفل */ direction:ltr; text-align:right; }
     small { color:#666; }
   </style>
 </head>
@@ -38,7 +38,7 @@
     <h1>محرّر معادلات عربية (RTL + أرقام هندية + SVG/PNG)</h1>
 
     <div class="row">
-      <!-- المحرّر -->
+      <!-- المحرر -->
       <div class="card" style="flex:1.2">
         <label>المحرّر (Mathlive):</label>
         <math-field id="editor" virtual-keyboard-mode="manual" smart-mode="true"></math-field>
@@ -69,6 +69,7 @@
       <!-- المخرجات -->
       <div class="card" style="flex:1">
         <label>المخرجات (SVG من MathJax):</label>
+        <!-- مهم: direction:ltr حتى لا ينقلب رمز الجذر -->
         <div id="out" class="outbox"></div>
 
         <div class="toolbar">
@@ -117,10 +118,11 @@
       if (useArabicDigits.checked) tex = toArabicDigits(tex);
 
       out.innerHTML = '$' + tex + '$';
-      await MathJax.typesetPromise([out]); // ينتج SVG داخل #out
-      // اتّجاه ومحاذاة عربية
-      out.style.direction = 'rtl';
+      // نحافظ على LTR داخل صندوق المخرجات لسلامة الجذر
+      out.style.direction = 'ltr';
       out.style.textAlign = 'right';
+
+      await MathJax.typesetPromise([out]); // ينتج SVG داخل #out
     }
 
     // الحصول على عنصر SVG الحالي
