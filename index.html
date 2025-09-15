@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>محرّر معادلات عربية (RTL)</title>
+
+  <!-- Mathlive (محرر بصري) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathlive/dist/mathlive.min.js"></script>
+
+  <!-- MathJax v3 (TeX -> SVG) -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <style>
+    body { font-family: system-ui, -apple-system, "Amiri", "XITS Math", serif; background:#f7f7f8; margin:0; padding:16px; }
+    h1 { font-size: 1.25rem; margin: 0 0 8px 0; text-align:right; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .row { display:flex; flex-wrap:wrap; gap:12px; }
+    .card { background:#fff; border:1px solid #e6e6e8; border-radius:10px; padding:12px; flex:1; min-width:300px; }
+    label { display:block; margin:6px 0; text-align:right; }
+    #editor { width:100%; min-height:56px; border:1px solid #ddd; border-radius:8px; padding:10px; background:#fff; direction:rtl; text-align:right; font-size:22px; }
+    textarea { width:100%; height:90px; border:1px solid #ddd; border-radius:8px; padding:10px; direction:rtl; text-align:right; }
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-top:8px; }
+    button { padding:.55rem .9rem; border:1px solid #d0d0d4; border-radius:8px; background:#fff; cursor:pointer; }
+    button.primary { background:#0a84ff; color:#fff; border-color:#0a84ff; }
+    .outbox { min-height:120px; direction:rtl; text-align:right; overflow:auto; }
+    small { color:#666; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>محرّر معادلات عربية (RTL + أرقام هندية + SVG/PNG)</h1>
+
+    <div class="row">
+      <!-- المحرّر -->
+      <div class="card" style="flex:1.2">
+        <label>المحرّر (Mathlive):</label>
+        <math-field id="editor" virtual-keyboard-mode="manual" smart-mode="true"></math-field>
+
+        <div class="toolbar">
+          <button onclick="insert('\\frac{}{}')">كسر</button>
+          <button onclick="insert('\\sqrt{}')">جذر</button>
+          <button onclick="insert('^{}')">أسّ</button>
+          <button onclick="insert('\\pm')">±</button>
+          <button onclick="insert('\\cdot')">⋅</button>
+          <button onclick="editor.focus()">تركيز</button>
+        </div>
+
+        <label>صيغة LaTeX (تلقائية من المحرّر – يمكن التعديل):</label>
+        <textarea id="latex"></textarea>
+
+        <div class="toolbar">
+          <label style="margin-inline-start:auto">
+            <input type="checkbox" id="arabicDigits" checked />
+            استخدم الأرقام العربية (٠١٢٣…)
+          </label>
+          <button class="primary" onclick="render()">تصيير المعادلة</button>
+        </div>
+
+        <small>مثال سريع: اكتب: س = \\frac{-ب \\pm \\sqrt{ب^{2} - ٤ أ ج}}{٢ أ}</small>
+      </div>
+
+      <!-- المخرجات -->
+      <div class="card" style="flex:1">
+        <label>المخرجات (SVG من MathJax):</label>
+        <div id="out" class="outbox"></div>
+
+        <div class="toolbar">
+          <button onclick="copySVG()">نسخ SVG</button>
+          <button onclick="downloadSVG()">تنزيل SVG</button>
+          <button onclick="downloadPNG()">تنزيل PNG</button>
+        </div>
+        <small>ملاحظة: PNG يتم توليده محليًا من SVG عبر Canvas.</small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // عناصر
+    const editor = document.getElementById('editor');
+    const latexArea = document.getElementById('latex');
+    const out = document.getElementById('out');
+    const useArabicDigits = document.getElementById('arabicDigits');
+
+    // تهيئة: مثال افتراضي
+    editor.value = 'س = \\frac{-ب \\pm \\sqrt{ب^{2} - ٤ أ ج}}{٢ أ}';
+    latexArea.value = editor.getValue('latex');
+
+    // مزامنة المحرر مع الـ textarea
+    editor.addEventListener('input', () => {
+      latexArea.value = editor.getValue('latex');
+    });
+    latexArea.addEventListener('input', () => {
+      editor.setValue(latexArea.value, { format: 'latex' });
+    });
+
+    // إدراج اختصارات
+    function insert(tex) {
+      editor.insert(tex);
+      editor.focus();
+    }
+
+    // تحويل الأرقام الغربية إلى عربية-هندية
+    function toArabicDigits(s) {
+      return s.replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]);
+    }
+
+    // تصيير المعادلة بـ MathJax
+    async function render() {
+      let tex = latexArea.value || '';
+      if (useArabicDigits.checked) tex = toArabicDigits(tex);
+
+      out.innerHTML = '$' + tex + '$';
+      await MathJax.typesetPromise([out]); // ينتج SVG داخل #out
+      // اتّجاه ومحاذاة عربية
+      out.style.direction = 'rtl';
+      out.style.textAlign = 'right';
+    }
+
+    // الحصول على عنصر SVG الحالي
+    function currentSVG() {
+      return out.querySelector('svg');
+    }
+
+    // نسخ SVG إلى الحافظة
+    async function copySVG() {
+      const svg = currentSVG();
+      if (!svg) return alert('صيّر المعادلة أولًا');
+      const blob = new Blob([svg.outerHTML], {type:'image/svg+xml'});
+      try {
+        await navigator.clipboard.write([new ClipboardItem({'image/svg+xml': blob})]);
+        alert('تم نسخ SVG');
+      } catch {
+        alert('قد يمنع المتصفح النسخ المباشر. استخدم تنزيل SVG.');
+      }
+    }
+
+    // تنزيل SVG
+    function downloadSVG() {
+      const svg = currentSVG();
+      if (!svg) return alert('صيّر المعادلة أولًا');
+      const blob = new Blob([svg.outerHTML], {type:'image/svg+xml'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'equation.svg';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // تنزيل PNG عبر تحويل SVG→Canvas
+    function downloadPNG(scale = 3) {
+      const svg = currentSVG();
+      if (!svg) return alert('صيّر المعادلة أولًا');
+
+      const xml = new XMLSerializer().serializeToString(svg);
+      const svg64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'equation.png';
+          a.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      };
+      img.src = svg64;
+    }
+
+    // تصيير أولي
+    render();
+  </script>
+</body>
+</html>
